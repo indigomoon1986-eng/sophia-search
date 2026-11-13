@@ -69,7 +69,7 @@ INSERT OR IGNORE INTO bands (name, center_thz, tolerance_thz, category) VALUES
     ('glutamate_CCC', 34.5, 1.0, 'bio_scale'),
     ('Fudan_71', 71.0, 1.0, 'fudan'),
     ('Fudan_87', 87.0, 1.0, 'fudan'),
-    ('Fudan_103', 103.0, 1.0, 'fudan);
+    ('Fudan_103', 103.0, 1.0, 'fudan');
 
 -- Example queries (commented)
 -- Ranking: SELECT s.spectrum_id, s.paper_doi, sc.compass_score, sc.trap_flags

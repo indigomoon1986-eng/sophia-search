@@ -8,6 +8,43 @@ Invariant-based search engine. Ranks results by structural invariants rather tha
 - **schema.sql** — Five-table index: Spectra, Lines, Bands, Scores, Morphologies. Frequency normalized to THz. Mechanism-type column future-proofs capacitive dispersion testing.
 - **query_understanding.py** — Classifies incoming queries by matching against invariant space before hitting the index. Maps user intent onto compass dimensions (cross-ratio, mean, spacing, denominator) and morphology axis (crista density, lamellar vs tubular).
 - **ranker.py** — Combines compass score, trap flags, and breathing-axis centroid shift into a single ranked result with provenance.
+- **ingest.py** — Stores DOI references and normalized spectra in a SQLite index, matches conventional bands, and scores frequency triplets.
+
+## Ingest
+
+Initialize a SQLite connection with `initialize_database` before calling `ingest`:
+
+```python
+import sqlite3
+from ingest import ingest, initialize_database
+
+db = sqlite3.connect("sophia.db")
+initialize_database(db)
+result = ingest([71000, 87000, 103000], db, frequency_unit="GHz", metadata={
+    "sample_type": "tissue", "live_or_dried": "live",
+    "crista_density_per_micron": 4.2, "lamellar_vs_tubular": "tubular",
+})
+```
+
+The source is a frequency list or a DOI string. DOI-only ingest stores a reference;
+it does not fetch paper data. Missing sample type and condition are stored as
+`unknown`. Units can be Hz, kHz, MHz, GHz, or THz (the default): raw input values
+are retained in `spectra.raw_frequencies`, while line frequencies are stored in THz.
+
+Optional metadata keys are `sample_type`, `live_or_dried` (`live` or `dried`),
+`temperature_k`, `intensity`, `claimed_assignment`, `crista_density_per_micron`,
+`lamellar_vs_tubular` (`lamellar` or `tubular`), `lumen_width_nm`, and
+`kappa_sensitivity_note`. Intensity and assignment may be scalars applied to all
+lines or lists aligned with the input frequencies.
+
+The result contains `spectrum_id`, `score`, `traps`, and `morphology_id`.
+All three-line combinations are scored and stored; `score` is the highest-scoring
+triplet, or `None` when fewer than three lines are provided. `traps` covers all
+lines using the database's non-Fudan band tolerances, while each stored score's
+flags cover its own triplet. The compass score itself uses the existing compass
+band constants. Ingest is atomic and respects an existing caller transaction;
+otherwise it commits on success. Schema initialization uses `executescript` and
+should be called outside an active transaction.
 
 ## What Survived Audit
 
