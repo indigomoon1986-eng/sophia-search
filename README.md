@@ -32,3 +32,35 @@ Pattern language with one real convergence (derived triplet matches independent 
 - Ingest published THz bio-spectroscopy datasets
 - Test breathing-axis predictions against live-cell imaging
 - Pre-register compass as scoring rule before new experimental results land
+
+
+## Cross-ratio definition (fixed)
+
+The four-point cross-ratio of collinear points on the complex plane is
+
+    (z1, z2; z3, z4) = ((z1 - z3) / (z1 - z4)) / ((z2 - z3) / (z2 - z4))
+
+and is available as `compass.cross_ratio4`. A triplet (low, mid, high) has only
+three points, so the compass anchors the other two at the frequency origin and
+the point at infinity: z1 = high, z2 = low, z3 = 0, z4 = inf, which reduces
+exactly to **high / low**. That is the quantity audited above: 103/71 =
+1.450704 vs 29/20 = 1.45 (0.049 % error). `mid` is tested by the mean check,
+not by the ratio.
+
+Earlier code computed (mid/low)/(high/mid), about 1.035 for (71, 87, 103), which
+is not this quantity and zeroed the cross-ratio check. Fudan triplet now:
+
+| check | sub-score |
+|---|---|
+| cross-ratio | 0.9903 |
+| arithmetic mean | 1.0 |
+| 16 THz spacing | 1.0 |
+| Rydberg denominator | 0.9764 |
+| `invariant_score` (mean of the four) | 0.9917 |
+| `score` (minus 0.15 per trap flag; 71 ~ CO2, 87 ~ lipid CH2) | 0.6917 |
+
+`score` is unchanged in meaning; `invariant_score`, `checks` and
+`trap_penalty` are new, additive fields. The Rydberg check gives 0.24 % with
+R = 3280 THz (3280/103 = 31.845), not the 0.19 % quoted above. With the trap
+penalty, `scan_denominators()` still finds nothing at or above 0.85 in 20-60
+(best 0.638).

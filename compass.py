@@ -21,11 +21,43 @@ BANDS = {
 BAND_TOL = 1.0  # THz tolerance window
 
 
+def cross_ratio4(z1: complex, z2: complex, z3: complex, z4: complex) -> complex:
+    """Projective cross-ratio of four collinear points on the complex plane:
+
+        (z1, z2; z3, z4) = ((z1 - z3) / (z1 - z4)) / ((z2 - z3) / (z2 - z4))
+
+    Any point may be ``math.inf`` (the point at infinity); the factors that
+    contain it cancel in the limit. Returns complex nan for degenerate input.
+    """
+    def _inf(z):
+        return isinstance(z, (int, float)) and math.isinf(z)
+
+    num1 = 1.0 if _inf(z1) or _inf(z3) else (z1 - z3)
+    den1 = 1.0 if _inf(z1) or _inf(z4) else (z1 - z4)
+    num2 = 1.0 if _inf(z2) or _inf(z3) else (z2 - z3)
+    den2 = 1.0 if _inf(z2) or _inf(z4) else (z2 - z4)
+    try:
+        return complex((num1 / den1) / (num2 / den2))
+    except ZeroDivisionError:
+        return complex(float("nan"), float("nan"))
+
+
 def cross_ratio(a: float, b: float, c: float) -> float:
-    """a/c relative to b/a. For triplet (low, mid, high)."""
+    """Triplet cross-ratio for (low, mid, high), as the README audits it:
+    103/71 vs 29/20 for the (71, 87, 103) triplet, i.e. high / low.
+
+    Formally this is the four-point cross-ratio (z1, z2; z3, z4) with
+    z1 = high, z2 = low, z3 = 0 (the origin of the frequency axis) and
+    z4 = infinity, which reduces exactly to high / low. ``mid`` does not enter
+    the ratio; it is tested separately by the arithmetic-mean check.
+
+    (Before this fix the code returned (b/a)/(c/b), about 1.035 for the
+    Fudan triplet, which is not the README quantity.)
+    """
     if a == 0 or c == 0:
         return float("nan")
-    return (b / a) / (c / b)
+    lo, hi = min(a, c), max(a, c)
+    return cross_ratio4(hi, lo, 0.0, math.inf).real
 
 
 def arithmetic_mean_error(a: float, b: float, c: float) -> float:
@@ -73,8 +105,14 @@ def score_triplet(low: float, mid: float, high: float) -> dict:
     total = (cr_score + mean_score + gap_score + denom_score) / 4.0 - trap_penalty
     total = max(0.0, min(1.0, total))
 
+    invariant = (cr_score + mean_score + gap_score + denom_score) / 4.0
+
     return {
         "score": round(total, 4),
+        "invariant_score": round(invariant, 4),  # four checks, before trap penalty
+        "checks": {"cross_ratio": round(cr_score, 4), "mean": round(mean_score, 4),
+                   "spacing": round(gap_score, 4), "rydberg": round(denom_score, 4)},
+        "trap_penalty": round(trap_penalty, 4),
         "cross_ratio": round(cr, 6) if not math.isnan(cr) else None,
         "cross_ratio_error_pct": round(cr_err * 100, 3) if not math.isnan(cr) else None,
         "mean_error_thz": round(mean_err, 4),
